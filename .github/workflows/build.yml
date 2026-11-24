@@ -34,12 +34,9 @@ jobs:
           ZIP_FILE=$(find "$GITHUB_WORKSPACE" -maxdepth 3 -type f -iname "*.zip" | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No project ZIP was found."
-            echo "Upload EGOIST-26.2-GITHUB-READY.zip to the repository."
+            echo "ERROR: No project ZIP found."
             exit 1
           fi
-
-          echo "Found ZIP: $ZIP_FILE"
 
           mkdir -p /tmp/egoist-extracted
           unzip -o "$ZIP_FILE" -d /tmp/egoist-extracted
@@ -47,25 +44,34 @@ jobs:
           BUILD_FILE=$(find /tmp/egoist-extracted -name build.gradle -type f | head -n 1)
 
           if [ -z "$BUILD_FILE" ]; then
-            echo "ERROR: build.gradle was not found inside the ZIP."
-            find /tmp/egoist-extracted -maxdepth 5 -type f
+            echo "ERROR: build.gradle not found."
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$BUILD_FILE")
-
-          echo "Project located at: $PROJECT_DIR"
-          echo "Project files:"
-          find "$PROJECT_DIR" -maxdepth 5 -type f
-
           cp -a "$PROJECT_DIR/." "$GITHUB_WORKSPACE/"
 
           if [ ! -d "$GITHUB_WORKSPACE/src" ]; then
-            echo "ERROR: src folder is missing after extraction."
+            echo "ERROR: src directory missing."
             exit 1
           fi
 
-          echo "Project successfully extracted."
+          echo "Project extracted successfully."
+
+      - name: Fix Gradle repository conflict
+        shell: bash
+        run: |
+          set -e
+
+          if [ -f settings.gradle ]; then
+            sed -i 's/RepositoriesMode.FAIL_ON_PROJECT_REPOS/RepositoriesMode.PREFER_PROJECT/g' settings.gradle
+          fi
+
+          if [ -f settings.gradle.kts ]; then
+            sed -i 's/RepositoriesMode.FAIL_ON_PROJECT_REPOS/RepositoriesMode.PREFER_PROJECT/g' settings.gradle.kts
+          fi
+
+          echo "Repository conflict fix applied."
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
